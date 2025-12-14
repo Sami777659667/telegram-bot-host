@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدير البوتات الذكي</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* نفس التنسيقات السابقة مع تحسين بسيط */
+        :root { --tg-theme-bg-color: #1e1e1e; --tg-theme-text-color: #ffffff; --tg-theme-button-color: #2481cc; --tg-theme-button-text-color: #ffffff; }
+        body { background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); font-family: sans-serif; padding: 20px; text-align: center; }
+        .container { max-width: 400px; margin: 0 auto; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2c2c2c; color: #fff; box-sizing: border-box;}
+        button { background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: right;}
+        h3 { margin-top: 0; font-size: 1rem; opacity: 0.9;}
+        .note { font-size: 0.8rem; color: #aaa; margin-bottom: 10px; display: block;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🧠 استضافة ذكية</h2>
+        
+        <div class="card">
+            <h3>1. توكن البوت (Bot Token)</h3>
+            <input type="text" id="botToken" placeholder="الصق التوكن هنا">
+        </div>
+
+        <div class="card">
+            <h3>2. ملف الردود (JSON)</h3>
+            <span class="note">ارفع ملف .json يحتوي على الكلمات والمفاتيح.</span>
+            <input type="file" id="rulesFile" accept=".json">
+        </div>
+
+        <button onclick="deployBot()">🚀 رفع وتشغيل</button>
+        <div id="log" style="margin-top: 20px; word-break: break-all;"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        async function deployBot() {
+            const token = document.getElementById('botToken').value.trim();
+            const fileInput = document.getElementById('rulesFile');
+            const log = document.getElementById('log');
+
+            if (!token) return log.innerText = "❌ مطلوب التوكن!";
+            
+            let rulesContent = null;
+            if (fileInput.files.length > 0) {
+                // قراءة محتوى الملف كنص
+                rulesContent = await fileInput.files[0].text();
+                // التحقق من صحة الـ JSON
+                try { JSON.parse(rulesContent); } catch(e) { return log.innerText = "❌ ملف JSON غير صالح!"; }
+            }
+
+            log.innerText = "⏳ جاري الرفع والتجهيز...";
+
+            try {
+                const response = await fetch('/api/manager', {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'deploy', token: token, rules: rulesContent })
+                });
+                const data = await response.json();
+                
+                if (data.ok) {
+                    log.innerText = `✅ تم تفعيل البوت بنجاح!\n${rulesContent ? "مع قاعدة بيانات الردود" : "بدون ملف ردود (Echo)"}`;
+                    tg.HapticFeedback.notificationOccurred('success');
+                } else {
+                    log.innerText = `❌ خطأ: ${data.description || "غير معروف"}`;
+                }
+            } catch (e) {
+                log.innerText = `❌ خطأ اتصال: ${e.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
